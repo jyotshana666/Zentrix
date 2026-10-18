@@ -1,0 +1,182 @@
+[
+  {
+    "action_id": "act_001",
+    "agent_id": "agent_01",
+    "session_id": "session_01",
+    "task_id": "task_001",
+    "operation": "READ",
+    "resource": "transaction_TX1001",
+    "timestamp": "2026-01-10T09:00:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "ALLOW",
+    "label": "NORMAL",
+    "notes": "Permitted read within task scope."
+  },
+  {
+    "action_id": "act_002",
+    "agent_id": "agent_01",
+    "session_id": "session_01",
+    "task_id": "task_001",
+    "operation": "READ",
+    "resource": "transaction_TX1002",
+    "timestamp": "2026-01-10T09:05:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "ALLOW",
+    "label": "NORMAL",
+    "notes": "Second permitted read in the same session."
+  },
+  {
+    "action_id": "act_003",
+    "agent_id": "agent_01",
+    "session_id": "session_02",
+    "task_id": "task_001",
+    "operation": "READ",
+    "resource": "transaction_TX1003",
+    "timestamp": "2026-01-11T10:00:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "ALLOW",
+    "label": "NORMAL",
+    "notes": "Permitted read in a new session \u2014 consistent baseline."
+  },
+  {
+    "action_id": "act_004",
+    "agent_id": "agent_01",
+    "session_id": "session_03",
+    "task_id": "task_001",
+    "operation": "UPDATE",
+    "resource": "transaction_TX1042",
+    "timestamp": "2026-01-12T14:00:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "BLOCK",
+    "label": "SUSPICIOUS",
+    "notes": "UPDATE is not in the agent's authorized operations."
+  },
+  {
+    "action_id": "act_005",
+    "agent_id": "agent_01",
+    "session_id": "session_03",
+    "task_id": "task_001",
+    "operation": "EXPORT",
+    "resource": "transaction_TX1042",
+    "timestamp": "2026-01-12T14:05:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "BLOCK",
+    "label": "SUSPICIOUS",
+    "notes": "EXPORT is a high-risk operation and is not authorized."
+  },
+  {
+    "action_id": "act_006",
+    "agent_id": "agent_01",
+    "session_id": "session_03",
+    "task_id": "task_001",
+    "operation": "DELETE",
+    "resource": "transaction_TX1001",
+    "timestamp": "2026-01-12T14:10:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "BLOCK",
+    "label": "SUSPICIOUS",
+    "notes": "DELETE is not authorized and is an irreversible action."
+  },
+  {
+    "action_id": "act_007",
+    "agent_id": "agent_01",
+    "session_id": "session_04",
+    "task_id": "task_001",
+    "operation": "UPDATE",
+    "resource": "transaction_TX9999",
+    "timestamp": "2026-01-13T09:00:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "BLOCK",
+    "label": "SUSPICIOUS",
+    "notes": "Repeating unauthorized UPDATE across sessions \u2014 escalation signal."
+  },
+  {
+    "action_id": "act_008",
+    "agent_id": "agent_02",
+    "session_id": "session_05",
+    "task_id": "task_002",
+    "operation": "SUMMARIZE",
+    "resource": "report_R001",
+    "timestamp": "2026-01-14T11:00:00+00:00",
+    "authorized_operations": [
+      "READ",
+      "SUMMARIZE"
+    ],
+    "authorized_resources": [
+      "report_R001",
+      "report_R002"
+    ],
+    "policy_decision": "ALLOW",
+    "label": "UNUSUAL_BUT_LEGITIMATE",
+    "notes": "SUMMARIZE is authorized; agent seldom uses it, but this is not a violation."
+  },
+  {
+    "action_id": "act_009",
+    "agent_id": "agent_01",
+    "session_id": "session_06",
+    "task_id": "task_001",
+    "operation": "READ",
+    "resource": "transaction_TX1003",
+    "timestamp": "2026-01-15T08:30:00+00:00",
+    "authorized_operations": [
+      "READ"
+    ],
+    "authorized_resources": [
+      "transaction_TX1001",
+      "transaction_TX1002",
+      "transaction_TX1003"
+    ],
+    "policy_decision": "ALLOW",
+    "label": "UNUSUAL_BUT_LEGITIMATE",
+    "notes": "Agent usually reads TX1001; switching to TX1003 is a pattern change but does not violate policy."
+  }
+]
