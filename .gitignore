@@ -1,8 +1,34 @@
-@"
-.venv/
+# Python
 __pycache__/
-*.pyc
-.env
-*.db
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# Pytest cache
 .pytest_cache/
-"@ | Set-Content .gitignore -Encoding utf8
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets & Environment variables
+.env
+.env.local
+
+# Databases (temporary or generated)
+*.db-journal
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
