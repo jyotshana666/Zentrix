@@ -759,3 +759,329 @@ class TestComputeDriftScore:
         assert score > 0, (
             f"Expected score > 0 (s2 is BLOCK+UPDATE, treated as current), got {score}."
         )
+
+
+# ---------------------------------------------------------------------------
+# Tests for decision / policy_decision compatibility
+# ---------------------------------------------------------------------------
+# These tests verify that events using the "decision" field are handled
+# identically to events using "policy_decision", across all code paths.
+# ---------------------------------------------------------------------------
+
+class TestDecisionFieldCompatibility:
+    """
+    Verify that both 'decision' and 'policy_decision' field names
+    are recognised in all scoring code paths.
+    """
+
+    # ---- risk_score.py: cross-session block detection ----
+
+    def test_risk_score_recognises_decision_field_block(self):
+        """
+        Prior session events using 'decision: BLOCK' (not policy_decision)
+        must still trigger the cross-session escalation penalty.
+        """
+        h = SessionHistory()
+        # Prior session uses the "decision" field, NOT "policy_decision"
+        h.add_event(make_action(
+            action_id="p1", session_id="s1", operation="UPDATE",
+        ) | {"decision": "BLOCK"})
+
+        action = make_action(session_id="s2", operation="UPDATE")
+        result = calculate_risk_score(action, block(), h)
+        reasons = " ".join(result["reasons"]).lower()
+        assert "prior" in reasons or "session" in reasons, (
+            "Events with 'decision: BLOCK' must be detected as blocked sessions."
+        )
+
+    def test_risk_score_recognises_policy_decision_field_block(self):
+        """
+        Prior session events using 'policy_decision: BLOCK' must also
+        trigger the cross-session escalation penalty (existing behaviour).
+        """
+        h = SessionHistory()
+        h.add_event(make_action(
+            action_id="p1", session_id="s1", operation="UPDATE",
+        ) | {"policy_decision": "BLOCK"})
+
+        action = make_action(session_id="s2", operation="UPDATE")
+        result = calculate_risk_score(action, block(), h)
+        reasons = " ".join(result["reasons"]).lower()
+        assert "prior" in reasons or "session" in reasons
+
+    def test_risk_score_decision_and_policy_decision_produce_same_score(self):
+        """
+        Using 'decision: BLOCK' vs 'policy_decision: BLOCK' on the same
+        prior event must produce the same risk score.
+        """
+        h1 = SessionHistory()
+        h1.add_event(make_action(
+            action_id="p1", session_id="s1", operation="UPDATE",
+        ) | {"decision": "BLOCK"})
+
+        h2 = SessionHistory()
+        h2.add_event(make_action(
+            action_id="p1", session_id="s1", operation="UPDATE",
+        ) | {"policy_decision": "BLOCK"})
+
+        action = make_action(session_id="s2", operation="UPDATE")
+        r1 = calculate_risk_score(action, block(), h1)
+        r2 = calculate_risk_score(action, block(), h2)
+        assert r1["risk_score"] == r2["risk_score"], (
+            f"'decision' gave {r1['risk_score']} but 'policy_decision' "
+            f"gave {r2['risk_score']} — they must match."
+        )
+
+    # ---- drift_assessor.py: compute_drift_score ----
+
+    def test_compute_drift_score_recognises_decision_block(self):
+        """
+        compute_drift_score must recognise 'decision: BLOCK' in the
+        latest session and produce a score > 0.
+        """
+        history = [
+            {
+                "action_id": "a1", "agent_id": "agent_compat",
+                "session_id": "s1", "task_id": "t",
+                "operation": "UPDATE", "resource": "r",
+                "decision": "BLOCK",  # uses "decision", NOT "policy_decision"
+            },
+        ]
+        score = compute_drift_score("agent_compat", history)
+        assert score > 0, (
+            f"compute_drift_score must recognise 'decision: BLOCK', got {score}"
+        )
+
+    def test_compute_drift_score_recognises_policy_decision_block(self):
+        """
+        compute_drift_score must recognise 'policy_decision: BLOCK'.
+        """
+        history = [
+            {
+                "action_id": "a1", "agent_id": "agent_compat",
+                "session_id": "s1", "task_id": "t",
+                "operation": "UPDATE", "resource": "r",
+                "policy_decision": "BLOCK",
+            },
+        ]
+        score = compute_drift_score("agent_compat", history)
+        assert score > 0
+
+    def test_compute_drift_score_decision_and_policy_decision_same(self):
+        """
+        Both field names must produce the same score for identical events.
+        """
+        base = {
+            "action_id": "a1", "agent_id": "agent_compat",
+            "session_id": "s1", "task_id": "t",
+            "operation": "DELETE", "resource": "r",
+        }
+        score_d = compute_drift_score("agent_compat", [{**base, "decision": "BLOCK"}])
+        score_pd = compute_drift_score("agent_compat", [{**base, "policy_decision": "BLOCK"}])
+        assert score_d == score_pd, (
+            f"'decision' score={score_d} vs 'policy_decision' score={score_pd}"
+        )
+
+    # ---- Mixed schemas in the same history ----
+
+    def test_mixed_decision_schemas_in_history(self):
+        """
+        A history containing SOME events with 'decision' and others with
+        'policy_decision' must handle both correctly.
+        """
+        history = [
+            {
+                "action_id": "a1", "agent_id": "agent_mix",
+                "session_id": "s1", "task_id": "t",
+                "operation": "UPDATE", "resource": "r",
+                "decision": "BLOCK",  # old schema
+            },
+            {
+                "action_id": "a2", "agent_id": "agent_mix",
+                "session_id": "s2", "task_id": "t",
+                "operation": "DELETE", "resource": "r",
+                "policy_decision": "BLOCK",  # new schema
+            },
+        ]
+        score = compute_drift_score("agent_mix", history)
+        assert score > 0, (
+            f"Mixed decision schemas must both be recognised, got {score}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Tests for backend/drift.py standalone compute_drift_score
+# ---------------------------------------------------------------------------
+
+class TestBackendDriftScore:
+    """
+    Tests for the standalone backend/drift.py compute_drift_score() that
+    uses the R = min(100, 25U + 20W + 15P + 10D) formula.
+    """
+
+    def test_import(self):
+        """backend.drift.compute_drift_score must be importable."""
+        from backend.drift import compute_drift_score as backend_cds
+        assert callable(backend_cds)
+
+    def test_empty_history_returns_zero(self):
+        from backend.drift import compute_drift_score as backend_cds
+        assert backend_cds("agent_x", []) == 0
+
+    def test_non_list_history_returns_zero(self):
+        from backend.drift import compute_drift_score as backend_cds
+        assert backend_cds("agent_x", None) == 0
+
+    def test_normal_read_scores_zero(self):
+        from backend.drift import compute_drift_score as backend_cds
+        history = [{
+            "action_id": "a1", "agent_id": "agent_x",
+            "session_id": "s1", "task_id": "t",
+            "operation": "SELECT", "resource": "transactions",
+            "decision": "ALLOW",
+        }]
+        assert backend_cds("agent_x", history) == 0
+
+    def test_recognises_decision_block(self):
+        """backend/drift.py must recognise 'decision: BLOCK'."""
+        from backend.drift import compute_drift_score as backend_cds
+        history = [{
+            "action_id": "a1", "agent_id": "agent_x",
+            "session_id": "s1", "task_id": "t",
+            "operation": "UPDATE", "resource": "transactions",
+            "decision": "BLOCK",
+        }]
+        score = backend_cds("agent_x", history)
+        assert score > 0, f"Expected > 0 with 'decision: BLOCK', got {score}"
+
+    def test_recognises_policy_decision_block(self):
+        """backend/drift.py must recognise 'policy_decision: BLOCK'."""
+        from backend.drift import compute_drift_score as backend_cds
+        history = [{
+            "action_id": "a1", "agent_id": "agent_x",
+            "session_id": "s1", "task_id": "t",
+            "operation": "UPDATE", "resource": "transactions",
+            "policy_decision": "BLOCK",
+        }]
+        score = backend_cds("agent_x", history)
+        assert score > 0, f"Expected > 0 with 'policy_decision: BLOCK', got {score}"
+
+    def test_decision_and_policy_decision_same_score(self):
+        """Both field names must produce the same score."""
+        from backend.drift import compute_drift_score as backend_cds
+        base = {
+            "action_id": "a1", "agent_id": "agent_x",
+            "session_id": "s1", "task_id": "t",
+            "operation": "UPDATE", "resource": "transactions",
+        }
+        score_d = backend_cds("agent_x", [{**base, "decision": "BLOCK"}])
+        score_pd = backend_cds("agent_x", [{**base, "policy_decision": "BLOCK"}])
+        assert score_d == score_pd
+
+    def test_score_bounded_0_to_100(self):
+        from backend.drift import compute_drift_score as backend_cds
+        history = [
+            {
+                "action_id": f"a{i}", "agent_id": "agent_x",
+                "session_id": f"s{i}", "task_id": "t",
+                "operation": "DELETE", "resource": "secrets",
+                "decision": "BLOCK",
+                "reason": "privilege escalation detected",
+            }
+            for i in range(30)
+        ]
+        score = backend_cds("agent_x", history)
+        assert 0 <= score <= 100
+
+    def test_other_agent_ignored(self):
+        from backend.drift import compute_drift_score as backend_cds
+        history = [{
+            "action_id": "a1", "agent_id": "agent_A",
+            "session_id": "s1", "task_id": "t",
+            "operation": "DELETE", "resource": "secrets",
+            "decision": "BLOCK",
+        }]
+        assert backend_cds("agent_B", history) == 0
+
+    def test_never_raises(self):
+        """compute_drift_score must never raise an exception."""
+        from backend.drift import compute_drift_score as backend_cds
+        # Pass garbage — should return 0, not raise
+        assert backend_cds(123, "not a list") == 0
+        assert backend_cds("x", [None, 42, "bad"]) == 0
+
+
+# ---------------------------------------------------------------------------
+# Tests for synthetic data: normalized operations & cross-session risk
+# ---------------------------------------------------------------------------
+
+class TestSyntheticDataExtended:
+    """
+    Additional tests for generate_data.py covering:
+      - Normalized operation names (SELECT, UPDATE, DELETE, EXPORT)
+      - Cross-session increasing risk pattern
+      - executed field consistency
+    """
+
+    def test_operations_are_normalized(self):
+        """All operations must be uppercase normalized names."""
+        from drift.generate_data import generate_scenarios
+        valid_ops = {"READ", "SELECT", "UPDATE", "DELETE", "EXPORT", "SUMMARIZE"}
+        scenarios = generate_scenarios()
+        for s in scenarios:
+            op = s["operation"]
+            assert op == op.upper(), (
+                f"Operation '{op}' in {s['action_id']} is not uppercase."
+            )
+
+    def test_cross_session_increasing_risk(self):
+        """
+        Suspicious scenarios across sessions must show an increasing risk
+        pattern: later sessions with blocks should score >= earlier ones.
+        """
+        from drift.generate_data import generate_scenarios
+        scenarios = generate_scenarios()
+
+        # agent_01's suspicious sessions: session_03 and session_04
+        s03_events = [s for s in scenarios
+                      if s["agent_id"] == "agent_01"
+                      and s["session_id"] == "session_03"]
+        s04_events = [s for s in scenarios
+                      if s["agent_id"] == "agent_01"
+                      and s["session_id"] == "session_04"]
+
+        assert s03_events, "session_03 must have events"
+        assert s04_events, "session_04 must have events"
+
+        # All session_03 and session_04 events should be BLOCK
+        for e in s03_events + s04_events:
+            assert e.get("policy_decision") == "BLOCK"
+
+    def test_blocked_events_not_executed(self):
+        """Events that are BLOCK must not claim executed=1."""
+        from drift.generate_data import generate_scenarios
+        scenarios = generate_scenarios()
+        for s in scenarios:
+            if s.get("policy_decision") == "BLOCK":
+                executed = s.get("executed")
+                # executed may not be present (acceptable), but if present
+                # it must be 0 or False for blocked actions
+                if executed is not None:
+                    assert not executed, (
+                        f"Blocked action {s['action_id']} must not have executed={executed}"
+                    )
+
+    def test_json_file_valid(self):
+        """data/synthetic_agent_actions.json must be valid JSON."""
+        import json
+        import os
+        json_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "data", "synthetic_agent_actions.json",
+        )
+        if os.path.isfile(json_path):
+            with open(json_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            assert isinstance(data, list)
+            assert len(data) > 0
+

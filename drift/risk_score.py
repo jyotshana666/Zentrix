@@ -212,7 +212,9 @@ def calculate_risk_score(
             # or if any event's operation is in the high/medium risk sets
             # and was not explicitly allowed.
             session_was_blocked = any(
-                str(e.get("policy_decision", "")).upper() == "BLOCK"
+                str(
+                    e.get("policy_decision") or e.get("decision") or ""
+                ).upper() == "BLOCK"
                 for e in events
             )
             if session_was_blocked:

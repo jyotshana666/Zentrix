@@ -325,7 +325,7 @@ def compute_drift_score(agent_id: str, history: list[dict]) -> int:
     # If no explicit policy_decision is present, treat as unverified.
     # ------------------------------------------------------------------
     decisions_in_latest = [
-        str(e.get("policy_decision", "")).upper()
+        str(e.get("policy_decision") or e.get("decision") or "").upper()
         for e in latest_events
     ]
     if "BLOCK" in decisions_in_latest:
