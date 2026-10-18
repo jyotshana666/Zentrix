@@ -14,11 +14,11 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | **115** |
-| **Passed** | **115** |
+| **Total tests** | **123** |
+| **Passed** | **123** |
 | **Failed** | **0** |
 | **Errors** | **0** |
-| **Duration** | **~1.44 s** |
+| **Duration** | **~1.81 s** |
 | **Exit code** | **0** |
 
 ---
@@ -29,7 +29,8 @@
 |------------|-------------|-------|
 | `origin/main` before integration (`1dcd6da`) | 16 | Original test suite only |
 | After integration commit (`c788798`) | 115 | All new tests added + passing |
-| After docs commit (`501420c`) — **pushed** | 115 | No regression |
+| After docs commit (`501420c`) | 115 | Audit documents added |
+| After CORS hardening (`feature/cors-hardening`) | 123 | +8 tests: trusted origins, preflight, credentials |
 
 ---
 
@@ -184,6 +185,22 @@ PRD Use Case B security proof.
 | Executor NOT called on BLOCK | `executed == False` | ✅ VERIFIED |
 | DB fingerprint identical before/after BLOCK | SHA-256 pre == SHA-256 post | ✅ VERIFIED |
 | DELETE also blocked on read-only task | `decision == "BLOCK"` | ✅ VERIFIED |
+
+---
+
+### `tests/test_cors.py` — 8 tests
+CORS security verification: trusted origins, untrusted origin rejection, OPTIONS preflight negotiation, credentials handling, and environment variable overrides.
+
+| Test | Verification Focus | Result |
+|------|-------------------|--------|
+| `TestCORSConfiguration::test_default_trusted_origins_list` | Standard local frontend ports included, wildcard `*` excluded | ✅ PASSED |
+| `TestCORSConfiguration::test_get_allowed_origins_env_override` | `WARDEN_ALLOWED_ORIGINS` dynamically overrides allowed origins | ✅ PASSED |
+| `TestCORSConfiguration::test_get_allowed_origins_default_fallback` | Empty/absent env var falls back safely to default list | ✅ PASSED |
+| `TestCORSConfiguration::test_trusted_origin_simple_request` | Trusted origin receives allow-origin & credentials headers | ✅ PASSED |
+| `TestCORSConfiguration::test_untrusted_origin_simple_request` | Untrusted origin does not receive allow-origin header | ✅ PASSED |
+| `TestCORSConfiguration::test_preflight_options_trusted_origin` | OPTIONS preflight returns 200, origin, credentials, methods | ✅ PASSED |
+| `TestCORSConfiguration::test_preflight_options_untrusted_origin` | OPTIONS preflight for untrusted caller refuses CORS origin | ✅ PASSED |
+| `TestCORSConfiguration::test_preflight_options_supported_methods` | Supported HTTP methods (GET, POST, OPTIONS) verified | ✅ PASSED |
 
 ---
 

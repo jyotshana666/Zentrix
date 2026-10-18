@@ -1,3 +1,4 @@
+import os
 import time
 from contextlib import asynccontextmanager
 
@@ -54,12 +55,36 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Enable CORS for the frontend dashboard
+# Trusted origins for Warden-Z dashboard and local dev environments
+DEFAULT_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+    "http://localhost:5500",
+    "http://127.0.0.1:5500",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
+
+
+def get_allowed_origins() -> list[str]:
+    raw = os.getenv("WARDEN_ALLOWED_ORIGINS", "")
+    if raw.strip():
+        return [origin.strip() for origin in raw.split(",") if origin.strip()]
+    return list(DEFAULT_TRUSTED_ORIGINS)
+
+
+ALLOWED_ORIGINS = get_allowed_origins()
+
+# Enable CORS restricted to trusted frontend origins with credential handling
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

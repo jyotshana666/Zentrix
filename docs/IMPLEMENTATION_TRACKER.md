@@ -110,7 +110,7 @@ Legend: ✅ Done | 🔲 Pending | ⚠️ Partial | ❌ Blocked
 | 6.10 | `POST /reviews/{action_id}` — approve/reject workflow | Member 5 | ✅ | `c788798` |
 | 6.11 | `GET /metrics` endpoint | Member 5 | ✅ | `c788798` |
 | 6.12 | `GET /agents/{agent_id}/risk` endpoint | Member 5 | ✅ | `c788798` |
-| 6.13 | CORS `allow_origins=["*"]` (demo) | Member 5 | ✅ | `c788798` |
+| 6.13 | CORS restricted to trusted origins + env override | Member 5 | ✅ | `feature/cors-hardening` — preflight & credentials verified |
 | 6.14 | `GET /admin/reset` — demo DB reset | Member 5 | ✅ | `c788798` — documented as demo-only |
 
 ---
@@ -139,7 +139,8 @@ Legend: ✅ Done | 🔲 Pending | ⚠️ Partial | ❌ Blocked
 | 8.3 | `tests/test_synthetic_data.py` | Synthetic data generation, reproducibility, no credentials | 11 | ✅ 11 PASSED |
 | 8.4 | `tests/test_end_to_end.py` | PRD use cases A/C/D, review workflow, metrics endpoint | 5 | ✅ 5 PASSED |
 | 8.5 | `tests/test_blocked_write.py` | PRD use case B, fingerprint invariant, executor not called | 2 | ✅ 2 PASSED (covered by e2e) |
-| **TOTAL** | | | **115** | ✅ **115 PASSED, 0 FAILED** |
+| 8.6 | `tests/test_cors.py` | Trusted origins, preflight OPTIONS, credentials, env override | 8 | ✅ 8 PASSED |
+| **TOTAL** | | | **123** | ✅ **123 PASSED, 0 FAILED** |
 
 ### Security Proof Tests
 | Proof | Test | Status |
@@ -198,8 +199,8 @@ Legend: ✅ Done | 🔲 Pending | ⚠️ Partial | ❌ Blocked
 
 | # | Item | Severity | Mitigation |
 |---|------|----------|------------|
-| L1 | CORS `allow_origins=["*"]` — demo only | Medium | Document as demo config; tighten for production |
+| L1 | CORS restricted to trusted origins (`WARDEN_ALLOWED_ORIGINS`) | Resolved | ✅ Default trusted local dev ports + env override for deployment |
 | L2 | `GET /admin/reset` unprotected | Medium | Documented as demo-only; not present in production profiles |
-| L3 | `feature/demo-policies` stale WIP branch | Low | Close or rebase; does not affect main |
+| L3 | `feature/demo-policies` stale WIP branch | Resolved | ✅ Deleted locally and on remote (O2) |
 | L4 | Two git roots (unrelated histories merge) | Info | Documented; resolved with `--allow-unrelated-histories`; no runtime impact |
 | L5 | LinuxONE deployment not verified on actual hardware | Medium | README includes deployment guide; cloud simulation used for latency measurements |

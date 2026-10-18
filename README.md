@@ -104,11 +104,19 @@ python -m http.server 5500 --directory frontend
 ```
 Navigate to `http://localhost:5500` to view the Warden-Z SOC interface.
 
+#### CORS & Trusted Origins
+By default, the gateway accepts requests from trusted frontend development origins (`http://localhost:3000`, `http://127.0.0.1:3000`, `http://localhost:5000`, `http://127.0.0.1:5000`, `http://localhost:5500`, `http://127.0.0.1:5500`, `http://localhost:8000`, `http://127.0.0.1:8000`, `http://localhost:8080`, `http://127.0.0.1:8080`) with full preflight (`OPTIONS`) and credentials handling.
+
+To customize or restrict allowed origins for staging/production deployments, set the `WARDEN_ALLOWED_ORIGINS` environment variable:
+```bash
+export WARDEN_ALLOWED_ORIGINS="https://dashboard.warden-z.ibm.com,https://soc.internal:8443"
+```
+
 ---
 
 ## 5. Automated Test Suite
 
-Run the full suite of **115 automated tests**:
+Run the full suite of **123 automated tests**:
 ```bash
 python -m pytest -v
 ```
@@ -119,6 +127,7 @@ python -m pytest -v
 - `tests/test_synthetic_data.py`: Synthetic scenario generator invariants, schema completeness, label integrity.
 - `tests/test_blocked_write.py`: Pre-execution interception, database immutability verification, SHA-256 fingerprint matching.
 - `tests/test_end_to_end.py`: End-to-end execution of PRD Use Cases A, B, C, D, human review approval/rejection, and metrics.
+- `tests/test_cors.py`: Trusted frontend origins, untrusted origin rejection, preflight (`OPTIONS`), credentials handling, and environment overrides.
 
 ---
 

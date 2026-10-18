@@ -74,7 +74,7 @@ f24cb2a  feat(frontend): connect Warden-Z dashboard to backend
 - **Status:** ✅ COMPLETE (with backend endpoint additions)
 - **What was delivered:** Full SPA with dark terminal theme, action history, risk visualization, held queue approval UI, simulation fallback data.
 - **Missing endpoints added:** `GET /metrics`, `GET /agents/{agent_id}/risk`, `POST /reviews/{action_id}`.
-- **CORS:** `CORSMiddleware` added to `backend/app.py` with `allow_origins=["*"]` (demo config).
+- **CORS:** Restricted to trusted frontend origins (default ports 3000, 5000, 5500, 8000, 8080) with credentials support (`allow_credentials=True`) and environment variable configuration via `WARDEN_ALLOWED_ORIGINS`. Preflight (`OPTIONS`) handling and rejection of untrusted origins verified in `tests/test_cors.py`.
 - **Frontend client:** `getMetrics()`, `getAgentRisk()`, `reviewAction()` added to `frontend/js/app.js`.
 
 ### 4.5 HOLD / Execute Hook (`feature/hold-and-execute-hook` — Member 5)
@@ -150,13 +150,14 @@ f24cb2a  feat(frontend): connect Warden-Z dashboard to backend
 
 ## 8. Remaining Open Items
 
-| # | Item | Severity | Action |
-|---|------|----------|--------|
-| O1 | CORS `allow_origins=["*"]` — demo config only | Medium | Restrict to dashboard origin before production deployment |
-| O2 | `GET /admin/reset` unprotected | Medium | Add auth token check before production; documented as demo-only |
-| O3 | `feature/demo-policies` stale WIP branch | Low | Branch owner should close/delete or rebase and remove |
-| O4 | LinuxONE latency not measured on actual Z hardware | Info | README deployment guide provided; IBM Z Datathon judges are aware |
-| O5 | Browser-level frontend integration tests | Low | Out of scope for CI; manual smoke test documented in README |
+| # | Item | Severity | Status / Action |
+|---|------|----------|-----------------|
+| O1 | Formal audit issue for `feature/behavioral-drift` | Resolved | ✅ Documented in GitHub Issue #7 |
+| O2 | Delete `feature/demo-policies` branch | Resolved | ✅ Deleted on origin and local worktree cleaned up |
+| O3 | Restrict CORS `allow_origins` to trusted origins | Resolved | ✅ Configured with `DEFAULT_TRUSTED_ORIGINS` & `WARDEN_ALLOWED_ORIGINS`, tested with preflight and credentials in `tests/test_cors.py` |
+| O4 | `GET /admin/reset` unprotected | Medium | Documented as demo-only; not present in production profiles |
+| O5 | LinuxONE latency not measured on actual Z hardware | Info | README deployment guide provided; IBM Z Datathon judges are aware |
+| O6 | Browser-level frontend integration tests | Low | Out of scope for CI; manual smoke test documented in README |
 
 ---
 
@@ -164,12 +165,11 @@ f24cb2a  feat(frontend): connect Warden-Z dashboard to backend
 
 | Item | Value |
 |------|-------|
-| `origin/main` HEAD SHA | `501420c` |
-| Total test count | 115 |
-| Tests passing | **115** |
+| Total test count | 123 |
+| Tests passing | **123** |
 | Tests failing | **0** |
 | Open PRs | 0 |
-| Stale WIP branches | 1 (`feature/demo-policies` — no action needed) |
+| Stale WIP branches | 0 (`feature/demo-policies` deleted) |
 | Secrets committed | **None** |
 | Credentials in demo data | **None** (verified by `test_no_real_credentials`) |
 
@@ -198,6 +198,7 @@ f24cb2a  feat(frontend): connect Warden-Z dashboard to backend
 | `tests/test_synthetic_data.py` | Tests | Created (Member 2) |
 | `tests/test_end_to_end.py` | Tests | **Created** — 5 e2e tests |
 | `tests/test_blocked_write.py` | Tests | **Created** — security proof tests |
+| `tests/test_cors.py` | Tests | **Created** — 8 CORS preflight & credentials tests |
 | `tests/__init__.py` | Tests | Created (Member 2) |
 | `scripts/evaluate_metrics.py` | Benchmarks | **Created** — benchmark runner |
 | `docs/CODEBASE_AUDIT.md` | Documentation | **Created** — 8-section audit |
