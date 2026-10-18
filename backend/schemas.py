@@ -1,14 +1,17 @@
 from typing import Any, Literal
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ActionRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     action_id: str
     agent_id: str
     session_id: str
     task_id: str
     operation: str
     resource: str
+    timestamp: str | None = None
 
     @field_validator("operation", mode="before")
     @classmethod
@@ -25,6 +28,8 @@ class ActionRequest(BaseModel):
 
 
 class DecisionResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     action_id: str
     decision: Literal["ALLOW", "HOLD", "BLOCK"]
     reason: str
@@ -33,6 +38,8 @@ class DecisionResponse(BaseModel):
 
 
 class TaskRegistrationRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
     task_id: str
     agent_id: str = "agent_01"
     purpose: str = "Declared agent task purpose"
@@ -70,6 +77,42 @@ class TaskRegistrationResponse(BaseModel):
     policy: dict[str, Any] = Field(default_factory=dict)
 
 
+class ReviewActionRequest(BaseModel):
+    decision: Literal["APPROVE", "REJECT", "APPROVED", "REJECTED"] = "APPROVE"
+    reviewer_id: str = "sec_analyst_01"
+    notes: str = "Manual security authorization"
+
+
+class ReviewActionResponse(BaseModel):
+    action_id: str
+    status: str
+    decision: str
+    executed: bool
+    message: str
+
+
+class MetricsResponse(BaseModel):
+    prevention_rate: float
+    false_hold_rate: float
+    drift_detection_recall: float
+    drift_precision: float
+    average_latency_ms: float
+    total_actions_evaluated: int
+    total_allowed: int
+    total_held: int
+    total_blocked: int
+    unauthorized_executions_count: int
+
+
+class AgentRiskResponse(BaseModel):
+    agent_id: str
+    risk_score: int
+    risk_level: str
+    contributing_signals: list[str] = Field(default_factory=list)
+    total_actions: int = 0
+    status: str = "nominal"
+
+
 # Compatibility aliases for API contract naming
 EvaluateRequest = ActionRequest
 EvaluateResponse = DecisionResponse
@@ -81,4 +124,8 @@ __all__ = [
     "EvaluateResponse",
     "TaskRegistrationRequest",
     "TaskRegistrationResponse",
+    "ReviewActionRequest",
+    "ReviewActionResponse",
+    "MetricsResponse",
+    "AgentRiskResponse",
 ]

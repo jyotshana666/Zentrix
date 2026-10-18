@@ -20,6 +20,7 @@ ENV/
 .env.local
 
 # Databases (temporary or generated)
+*.db
 *.db-journal
 
 # Distribution / packaging

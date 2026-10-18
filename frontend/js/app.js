@@ -117,6 +117,21 @@ const API = {
       method: 'POST',
     });
   },
+
+  getMetrics() {
+    return this.request('/metrics');
+  },
+
+  getAgentRisk(agentId) {
+    return this.request(`/agents/${encodeURIComponent(agentId)}/risk`);
+  },
+
+  reviewAction(actionId, decision = 'APPROVE', notes = '') {
+    return this.request(`/reviews/${encodeURIComponent(actionId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ decision, notes }),
+    });
+  },
 };
 
 /* ═══════════════════════════════════════════════════════════════
