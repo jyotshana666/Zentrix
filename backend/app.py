@@ -1,4 +1,3 @@
-
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -13,12 +12,19 @@ from backend.database import (
     log_event,
     reset_db,
 )
-from backend.policy_engine import evaluate_action
+from backend.policy_engine import (
+    evaluate_action,
+    get_task_policy,
+    list_task_policies,
+    register_task_policy,
+)
 from backend.schemas import (
     ActionRequest,
     DecisionResponse,
     EvaluateRequest,
     EvaluateResponse,
+    TaskRegistrationRequest,
+    TaskRegistrationResponse,
 )
 
 
@@ -59,6 +65,33 @@ HELD_ACTIONS: list[dict] = []
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "agent-warden-z"}
+
+
+@app.post("/tasks", response_model=TaskRegistrationResponse)
+def register_task(task: TaskRegistrationRequest):
+    try:
+        registered = register_task_policy(task)
+        return TaskRegistrationResponse(
+            task_id=task.task_id,
+            status="registered",
+            message=f"Task policy '{task.task_id}' registered successfully",
+            policy=registered,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/tasks")
+def get_all_tasks():
+    return list_task_policies()
+
+
+@app.get("/tasks/{task_id}")
+def get_single_task(task_id: str):
+    policy = get_task_policy(task_id)
+    if policy is None:
+        raise HTTPException(status_code=404, detail="Task policy not found")
+    return {"task_id": task_id, "policy": policy}
 
 
 @app.post("/actions/evaluate", response_model=DecisionResponse)
@@ -150,4 +183,3 @@ def admin_reset():
     reset_db()
     HELD_ACTIONS.clear()
     return {"status": "reset"}
-
