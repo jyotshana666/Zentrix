@@ -606,48 +606,63 @@ function renderSecurityOverview() {
   const tbody = document.getElementById('recent-events-body');
   if (!tbody) return;
 
-  if (state.backendConnected && state.liveActions.length > 0) {
-    const events = state.liveActions.slice(0, 10);
+  const table = document.getElementById('recent-events-table');
+  const headers = table ? table.querySelectorAll('thead th') : [];
+  const modeTag = document.getElementById('recent-events-mode-tag');
 
-    // Compute live KPI counters
-    const blockedCount = state.liveActions.filter(a => a.decision === 'BLOCK').length;
-    const heldCount = state.liveHeldActions.length;
-    const allowedCount = state.liveActions.filter(a => a.decision === 'ALLOW').length;
-    const uniqueAgents = new Set(state.liveActions.map(a => a.agent_id)).size;
+  if (modeTag) {
+    modeTag.textContent = state.backendConnected ? 'LIVE BACKEND' : 'SIMULATED';
+    modeTag.style.color = state.backendConnected ? '#6ee7b7' : '#c8870d';
+  }
+
+  if (state.backendConnected) {
+    const events = Array.isArray(state.liveActions) ? state.liveActions.slice(0, 10) : [];
+
+    ['Timestamp', 'Decision', 'Action ID', 'Agent', 'Operation / Resource', 'Executed']
+      .forEach((label, i) => { if (headers[i]) headers[i].textContent = label; });
+
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-secondary)">No live audit events returned by the backend yet.</td></tr>';
+    } else {
+      tbody.innerHTML = events.map(e => `
+        <tr>
+          <td class="mono" style="font-size:11.5px">${escHtml(e.timestamp ? String(e.timestamp).replace('T', ' ').substring(0, 19) : '—')}</td>
+          <td>${decisionBadge(e.decision)}</td>
+          <td class="mono" style="color:var(--cyan);font-weight:600">${escHtml(e.action_id || e.event_id || '—')}</td>
+          <td class="mono" style="color:var(--text-primary)">${escHtml(e.agent_id || '—')}</td>
+          <td class="mono" style="font-size:12px">${escHtml(e.operation || '—')} on ${escHtml(e.resource || '—')}</td>
+          <td>${executedBadge(e.executed)}</td>
+        </tr>`).join('');
+    }
+
+    const blockedCount = events.filter(a => a.decision === 'BLOCK').length;
+    const heldCount = (state.liveHeldActions || []).length;
+    const uniqueAgents = new Set(events.map(a => a.agent_id).filter(Boolean)).size;
 
     setKpiValue('kpi-threats', blockedCount + heldCount);
-    setKpiValue('kpi-agents', Math.max(uniqueAgents, 1));
-    setKpiValue('kpi-policies', SIM.taskPolicies.length);
+    setKpiValue('kpi-agents', uniqueAgents);
+    setKpiValue('kpi-policies', '—');
     setKpiValue('kpi-incidents', blockedCount);
-
-    tbody.innerHTML = events.map(e => `
-      <tr>
-        <td class="mono" style="font-size:11.5px">${escHtml(e.timestamp ? e.timestamp.replace('T', ' ').substring(0, 19) : '—')}</td>
-        <td>${decisionBadge(e.decision)}</td>
-        <td class="mono" style="color:var(--cyan);font-weight:600">${escHtml(e.action_id || e.event_id || '—')}</td>
-        <td class="mono" style="color:var(--text-primary)">${escHtml(e.agent_id || '—')}</td>
-        <td class="mono" style="font-size:12px">${escHtml(e.operation || 'OP')} on ${escHtml(e.resource || 'res')}</td>
-        <td>${executedBadge(e.executed)}</td>
-      </tr>`
-    ).join('');
-  } else {
-    // Offline simulated fallback
-    setKpiValue('kpi-threats', 247);
-    setKpiValue('kpi-agents', 18);
-    setKpiValue('kpi-policies', 94);
-    setKpiValue('kpi-incidents', 7);
-
-    tbody.innerHTML = SIM.recentEvents.map(e => `
-      <tr>
-        <td class="mono" style="font-size:11.5px">${escHtml(e.ts)}</td>
-        <td>${severityBadge(e.severity)}</td>
-        <td class="text-primary-cell">${escHtml(e.type)}</td>
-        <td class="mono text-cyan" style="color:var(--cyan)">${escHtml(e.agent)}</td>
-        <td class="mono">${escHtml(e.source)}</td>
-        <td>${statusBadge(e.status)}</td>
-      </tr>`
-    ).join('');
+    return;
   }
+
+  ['Timestamp', 'Severity', 'Event Type', 'Agent', 'Source IP', 'Status']
+    .forEach((label, i) => { if (headers[i]) headers[i].textContent = label; });
+
+  setKpiValue('kpi-threats', 'DEMO');
+  setKpiValue('kpi-agents', 'DEMO');
+  setKpiValue('kpi-policies', 'DEMO');
+  setKpiValue('kpi-incidents', 'DEMO');
+
+  tbody.innerHTML = SIM.recentEvents.map(e => `
+    <tr>
+      <td class="mono" style="font-size:11.5px">${escHtml(e.ts)}</td>
+      <td>${severityBadge(e.severity)}</td>
+      <td class="text-primary-cell">${escHtml(e.type)}</td>
+      <td class="mono text-cyan" style="color:var(--cyan)">${escHtml(e.agent)}</td>
+      <td class="mono">${escHtml(e.source)}</td>
+      <td>${statusBadge(e.status)}</td>
+    </tr>`).join('');
 }
 
 function setKpiValue(id, target) {

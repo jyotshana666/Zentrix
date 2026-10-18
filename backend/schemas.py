@@ -1,4 +1,5 @@
-from typing import Any, Literal
+from __future__ import annotations
+from typing import Any, Literal, Optional, Optional
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -11,7 +12,7 @@ class ActionRequest(BaseModel):
     task_id: str
     operation: str
     resource: str
-    timestamp: str | None = None
+    timestamp: Optional[str] = None
 
     @field_validator("operation", mode="before")
     @classmethod
